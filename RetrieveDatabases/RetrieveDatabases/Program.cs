@@ -24,29 +24,44 @@ namespace RetrieveDatabases
 
         private static void CreateDatabase()
         {
-            //DacPackage x = DacPackage.Load(@"C:\Users\Don\Documents\SQL Server Management Studio\DAC Packages\EventRegistration.dacpac");
-
             try
             {
+                // Create DacDeployOptions
                 DacDeployOptions options = new DacDeployOptions();
                 options.CreateNewDatabase = true;
 
-                string connectionString = ConfigurationManager.ConnectionStrings["DefaultConnection"].ToString();
+                // Specify Connection string for Source DB
+                string sourceConnectionString = ConfigurationManager.ConnectionStrings["DefaultConnection"].ToString();
 
-                DacServices dacServices = new DacServices(connectionString);
+                // Create DacServices to access Source DB
+                DacServices sourceDacServices = new DacServices(sourceConnectionString);
 
+                // Create memory object to hold the DACPAC package vs saving to file system
                 Stream dacPackage = new MemoryStream();
 
-                dacServices.Extract(dacPackage, "EventRegistration", "EventRegistration", new Version("1.0.0.0"));
+                // Extract database into DACPAC memory object
 
-                DacPackage x = DacPackage.Load(dacPackage);
+                //NOTE: The second "EventRegistration" is the application name. I'm not sure how this is really used in the creation of the DACPAC. Same with the version.
+                sourceDacServices.Extract(dacPackage, "EventRegistration", "EventRegistration", new Version("1.0.0.0"));
 
-                dacServices.Deploy(x, "EventRegistration2");
+                // Load DACPAC memory object into an actual DACPAC typed object
+                DacPackage dacPac = DacPackage.Load(dacPackage);
 
+                // This version will create a NEW database with a new name, provided in quotes, on the same DB Server as the Source DB because we are using the same DacServices instance.
+                sourceDacServices.Deploy(dacPac, "EventRegistration2");
 
+                // This will give you the text version of the script in the event you want to save the script to a file and run the changes manually or have a written record of the changes that occurred.
                 //string script = DacServices.GenerateCreateScript(x, "EventRegistration2", null);
 
 
+                /*************** I have provided the below as an example only. I haven't been able to test this yet. ********************/
+                // To update an existing database you will need to create a new DacServices instance with the Destination Connection String
+                string destConnectionString = "";
+                DacServices destDacServices = new DacServices(destConnectionString);
+
+                // Deploy to destination
+                destDacServices.Deploy(dacPac, "EventRegistration", true, options);
+                /*********************************************/
 
                 Console.WriteLine("DAC Created");
             }
